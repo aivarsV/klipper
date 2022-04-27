@@ -18,6 +18,11 @@ class ManualStepper:
             self.can_home = False
             self.rail = stepper.PrinterStepper(config)
             self.steppers = [self.rail]
+        self.position_min = config.getfloat('position_min', 0.)
+        self.position_max = config.getfloat('position_max', None)
+        if self.position_max is not None and self.position_max <= self.position_min:
+            raise config.error("position_max must be above "
+                                "position_min=%f" %self.position_min)
         self.velocity = config.getfloat('velocity', 5., above=0.)
         self.accel = self.homing_accel = config.getfloat('accel', 0., minval=0.)
         self.next_cmd_time = 0.
@@ -55,11 +60,19 @@ class ManualStepper:
         self.sync_print_time()
     def do_set_position(self, setpos):
         self.rail.set_position([setpos, 0., 0.])
-    def do_move(self, movepos, speed, accel, sync=True):
+    def check_move(self, dist, current):
+        if self.position_max is None:
+            return
+        target = dist + current
+        if target < self.position_min or target > self.position_max:
+            raise self.printer.command_error(
+                    "Move out of range "
+                    "%f (min:%f max:%f)" %(target, self.position_min, self.position_max))
     def do_move(self, movepos, speed, accel, sync=True, relative=False):
         self.sync_print_time()
         cp = self.rail.get_commanded_position()
         dist = movepos if relative else movepos - cp
+        self.check_move(dist, cp)
         axis_r, accel_t, cruise_t, cruise_v = force_move.calc_move_time(
             dist, speed, accel)
         self.trapq_append(self.trapq, self.next_cmd_time,

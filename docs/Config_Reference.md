@@ -1854,6 +1854,8 @@ printer kinematics.
 #dir_pin:
 #enable_pin:
 #microsteps:
+#position_min:
+#position_max:
 #rotation_distance:
 #   See the "stepper" section for a description of these parameters.
 #velocity:
