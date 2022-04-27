@@ -56,9 +56,10 @@ class ManualStepper:
     def do_set_position(self, setpos):
         self.rail.set_position([setpos, 0., 0.])
     def do_move(self, movepos, speed, accel, sync=True):
+    def do_move(self, movepos, speed, accel, sync=True, relative=False):
         self.sync_print_time()
         cp = self.rail.get_commanded_position()
-        dist = movepos - cp
+        dist = movepos if relative else movepos - cp
         axis_r, accel_t, cruise_t, cruise_v = force_move.calc_move_time(
             dist, speed, accel)
         self.trapq_append(self.trapq, self.next_cmd_time,
@@ -100,7 +101,8 @@ class ManualStepper:
         elif gcmd.get_float('MOVE', None) is not None:
             movepos = gcmd.get_float('MOVE')
             sync = gcmd.get_int('SYNC', 1)
-            self.do_move(movepos, speed, accel, sync)
+            relative = gcmd.get_int('RELATIVE', 0) > 0
+            self.do_move(movepos, speed, accel, sync, relative)
         elif gcmd.get_int('SYNC', 0):
             self.sync_print_time()
     # Toolhead wrappers to support homing
