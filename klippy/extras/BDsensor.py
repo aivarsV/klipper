@@ -62,12 +62,6 @@ class MCU_I2C_BD:
     def I2C_BD_receive(self,  data):
         return self.I2C_BD_receive_cmd.send([self.oid, data])
 
-def MCU_BD_I2C_from_config(mcu,config):
-    # Determine pin from config
-    ppins = config.get_printer().lookup_object("pins")
-    pin_sda=config.get('sda_pin')
-    pin_scl=config.get('scl_pin')
-    return MCU_I2C_BD(mcu,pin_sda,pin_scl,config.get('delay'))
 
 # BDsensor wrapper that enables probe specific features
 # set this type of sda_pin 2 as virtual endstop
@@ -86,11 +80,11 @@ class BDsensorEndstopWrapper:
         # Create an "endstop" object to handle the probe pin
         ppins = self.printer.lookup_object('pins')
         pin = config.get('sda_pin')
-        pin_params = ppins.lookup_pin(pin, can_invert=True, can_pullup=True)
-        self.mcu = mcu.get_printer_mcu(self.printer, 'mcu')
+        sda_pin_params = ppins.lookup_pin(pin, can_invert=True, can_pullup=True)
+        self.mcu = mcu.get_printer_mcu(self.printer, sda_pin_params["chip_name"])
         # set this type of sda_pin 2 as virtual endstop
-        pin_params['pullup']=2
-        self.mcu_endstop = self.mcu.setup_pin('endstop', pin_params)
+        sda_pin_params['pullup']=2
+        self.mcu_endstop = self.mcu.setup_pin('endstop', sda_pin_params)
         self.printer.register_event_handler('klippy:mcu_identify',
                                             self._handle_mcu_identify)
         self.oid = self.mcu.create_oid()
@@ -103,7 +97,8 @@ class BDsensorEndstopWrapper:
         self.stepper_kinematics = ffi_main.gc(
             ffi_lib.cartesian_stepper_alloc(b'x'), ffi_lib.free)
 
-        self.bd_sensor=MCU_BD_I2C_from_config(self.mcu,config)
+        scl_pin_params = ppins.lookup_pin(config.get("scl_pin"))
+        self.bd_sensor=MCU_I2C_BD(self.mcu,sda_pin_params["pin"], scl_pin_params["pin"], config.get("delay"))
         self.distance=5;
         # Register M102 commands
         self.gcode = self.printer.lookup_object('gcode')
